@@ -21,8 +21,8 @@ const LOG_SOURCE = "AuthOptions";
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
   // Get credentials from database or environment variables
-  const googleCredentials = await getGoogleCredentials();
-  const outlookCredentials = await getOutlookCredentials();
+  // const googleCredentials = await getGoogleCredentials();
+  // const outlookCredentials = await getOutlookCredentials();
 
   return {
     // Add secret for production - required for security
@@ -34,29 +34,29 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
 
     providers: [
       // Keep existing providers for calendar connections
-      GoogleProvider({
-        clientId: googleCredentials.clientId,
-        clientSecret: googleCredentials.clientSecret,
-        authorization: {
-          params: {
-            scope:
-              "openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",
-            prompt: "consent",
-            access_type: "offline",
-            response_type: "code",
-          },
-        },
-      }),
-      AzureADProvider({
-        clientId: outlookCredentials.clientId,
-        clientSecret: outlookCredentials.clientSecret,
-        tenantId: outlookCredentials.tenantId,
-        authorization: {
-          params: {
-            scope: MICROSOFT_GRAPH_SCOPES.join(" "),
-          },
-        },
-      }),
+      // GoogleProvider({
+      //   clientId: googleCredentials.clientId,
+      //   clientSecret: googleCredentials.clientSecret,
+      //   authorization: {
+      //     params: {
+      //       scope:
+      //         "openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",
+      //       prompt: "consent",
+      //       access_type: "offline",
+      //       response_type: "code",
+      //     },
+      //   },
+      // }),
+      // AzureADProvider({
+      //   clientId: outlookCredentials.clientId,
+      //   clientSecret: outlookCredentials.clientSecret,
+      //   tenantId: outlookCredentials.tenantId,
+      //   authorization: {
+      //     params: {
+      //       scope: MICROSOFT_GRAPH_SCOPES.join(" "),
+      //     },
+      //   },
+      // }),
       // Add credentials provider for email/password authentication
       CredentialsProvider({
         name: "Credentials",

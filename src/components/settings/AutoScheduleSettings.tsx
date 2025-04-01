@@ -1,5 +1,4 @@
 import { useSettingsStore } from "@/store/settings";
-import { useCalendarStore } from "@/store/calendar";
 import { SettingsSection, SettingRow } from "./SettingsSection";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -13,21 +12,12 @@ import {
 } from "@/components/ui/select";
 import {
   parseWorkDays,
-  parseSelectedCalendars,
   stringifyWorkDays,
-  stringifySelectedCalendars,
   formatTime,
 } from "@/lib/autoSchedule";
-import { useEffect } from "react";
 
 export function AutoScheduleSettings() {
   const { autoSchedule, updateAutoScheduleSettings } = useSettingsStore();
-  const { feeds, loadFromDatabase } = useCalendarStore();
-
-  // Load calendar feeds when component mounts
-  useEffect(() => {
-    loadFromDatabase();
-  }, [loadFromDatabase]);
 
   const workingDays = [
     { value: 0, label: "Sunday" },
@@ -44,9 +34,6 @@ export function AutoScheduleSettings() {
     label: formatTime(i),
   }));
 
-  const selectedCalendars = parseSelectedCalendars(
-    autoSchedule.selectedCalendars
-  );
   const workDays = parseWorkDays(autoSchedule.workDays);
 
   return (
@@ -54,41 +41,6 @@ export function AutoScheduleSettings() {
       title="Auto-Schedule Settings"
       description="Configure how tasks are automatically scheduled in your calendar."
     >
-      <SettingRow
-        label="Calendars to Consider"
-        description="Select which calendars to check for conflicts when auto-scheduling"
-      >
-        <div className="space-y-2">
-          {feeds.map((feed) => (
-            <div key={feed.id} className="flex items-center space-x-2">
-              <Switch
-                checked={selectedCalendars.includes(feed.id)}
-                onCheckedChange={(checked) => {
-                  const calendars = checked
-                    ? [...selectedCalendars, feed.id]
-                    : selectedCalendars.filter((id) => id !== feed.id);
-                  updateAutoScheduleSettings({
-                    selectedCalendars: stringifySelectedCalendars(calendars),
-                  });
-                }}
-              />
-              <Label className="flex items-center gap-2">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: feed.color || "var(--muted)" }}
-                />
-                {feed.name}
-              </Label>
-            </div>
-          ))}
-          {feeds.length === 0 && (
-            <div className="text-sm text-muted-foreground">
-              No calendars found. Please add calendars in the Calendar Settings.
-            </div>
-          )}
-        </div>
-      </SettingRow>
-
       <SettingRow
         label="Working Hours"
         description="Set your preferred working hours for task scheduling"

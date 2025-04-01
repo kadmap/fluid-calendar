@@ -45,7 +45,7 @@ export function Calendar() {
   };
 
   return (
-    <div className="h-full w-full flex">
+    <div className="flex h-full w-full">
       {/* Sidebar */}
       <aside
         className={cn(

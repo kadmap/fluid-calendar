@@ -84,9 +84,10 @@ interface CalendarStore extends CalendarState {
   addFeed: (
     name: string,
     url: string,
-    type: "GOOGLE" | "OUTLOOK" | "CALDAV",
-    color?: string
-  ) => Promise<void>;
+    type: "GOOGLE" | "OUTLOOK" | "LOCAL",
+    color?: string,
+    localOnly?: boolean
+  ) => Promise<string>;
   removeFeed: (id: string) => Promise<void>;
   toggleFeed: (id: string) => Promise<void>;
   updateFeed: (id: string, updates: Partial<CalendarFeed>) => Promise<void>;
@@ -223,7 +224,7 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
   },
 
   // Feed management
-  addFeed: async (name, url, type, color) => {
+  addFeed: async (name, url, type, color, localOnly = false) => {
     const id = uuidv4();
     const feed: CalendarFeed = {
       id,
@@ -235,6 +236,13 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
     };
 
     try {
+      // For local-only mode, just update the store without API calls
+      if (localOnly) {
+        // Update local state without API call
+        set((state) => ({ feeds: [...state.feeds, feed] }));
+        return id;
+      }
+
       // For Google Calendar feeds, use the Google Calendar API
       if (type === "GOOGLE") {
         const response = await fetch("/api/calendar/google", {
@@ -253,10 +261,37 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
 
         const googleFeed = await response.json();
         set((state) => ({ feeds: [...state.feeds, googleFeed] }));
-        return;
+        return id;
       }
 
-      // For iCal feeds, use the existing API
+      // For LOCAL feeds, just use the existing API
+      if (type === "LOCAL") {
+        try {
+          const response = await fetch("/api/feeds", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(feed),
+          });
+
+          if (!response.ok) {
+            // If the API call fails, still add to local state
+            console.log("API error, falling back to local state only");
+            set((state) => ({ feeds: [...state.feeds, feed] }));
+            return id;
+          }
+
+          // Update local state after successful database save
+          set((state) => ({ feeds: [...state.feeds, feed] }));
+        } catch (error) {
+          // On error, still add to local state
+          console.error("Failed to add feed to database:", error);
+          set((state) => ({ feeds: [...state.feeds, feed] }));
+        }
+
+        return id;
+      }
+
+      // For other feeds (like Outlook), use the existing API
       const response = await fetch("/api/feeds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,6 +309,8 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       if (url) {
         await get().syncFeed(id);
       }
+
+      return id;
     } catch (error) {
       console.error("Failed to add feed:", error);
       throw error;
@@ -295,17 +332,23 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
           throw new Error("Failed to remove Google Calendar");
         }
       } else {
-        // For other feeds, use the existing API
+        // For other feeds, try using the API but fall back to local state
+        try {
         const response = await fetch(`/api/feeds/${id}`, {
           method: "DELETE",
         });
 
         if (!response.ok) {
-          throw new Error("Failed to remove feed from database");
+            // If API call fails, throw error to handle locally
+            throw new Error("Feed not found in database");
+          }
+        } catch (error) {
+          console.log("API error, removing feed locally only:", error);
+          // Continue with local state update even if API fails
         }
       }
 
-      // Update local state after successful database removal
+      // Update local state after handling database removal
       set((state) => ({
         feeds: state.feeds.filter((feed) => feed.id !== id),
         events: state.events.filter((event) => event.feedId !== id),
@@ -333,7 +376,8 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
           throw new Error("Failed to update Google Calendar");
         }
       } else {
-        // For other feeds, use the existing API
+        // For other feeds, try using the API but fall back to local state
+        try {
         const response = await fetch(`/api/feeds/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -341,7 +385,19 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         });
 
         if (!response.ok) {
-          throw new Error("Failed to update feed in database");
+            // If API call fails, throw error to handle locally
+            throw new Error("Feed not found in database");
+          }
+        } catch (error) {
+          console.log("API error, updating feed locally only:", error);
+          // Still update the feed in local state even if API fails
+          set((state) => ({
+            feeds: state.feeds.map((f) =>
+              f.id === id ? { ...f, enabled: !f.enabled } : f
+            ),
+          }));
+          // Return early since we've already updated the state
+          return;
         }
       }
 
@@ -374,7 +430,8 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
           throw new Error("Failed to update Google Calendar");
         }
       } else {
-        // For other feeds, use the existing API
+        // For other feeds, try using the API but fall back to local state
+        try {
         const response = await fetch(`/api/feeds/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -382,11 +439,16 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         });
 
         if (!response.ok) {
-          throw new Error("Failed to update feed in database");
+            // If API call fails, throw error to handle locally
+            throw new Error("Feed not found in database");
+          }
+        } catch (error) {
+          console.log("API error, updating feed locally only:", error);
+          // Continue with local state update even if API fails
         }
       }
 
-      // Update local state after successful database update
+      // Update local state even if database update failed
       set((state) => ({
         feeds: state.feeds.map((feed) =>
           feed.id === id ? { ...feed, ...updates } : feed
@@ -412,6 +474,25 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       const feed = get().feeds.find((f) => f.id === newEvent.feedId);
       if (!feed) {
         throw new Error("Calendar not found");
+      }
+
+      // Check if we're in offline mode
+      const isOfflineMode =
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("offlineMode") === "true";
+
+      // For offline mode, just update the local state
+      if (isOfflineMode) {
+        console.log("Adding event in offline mode");
+        // Update local state without API call
+        set((state) => ({
+          events: [...state.events, newEvent as CalendarEvent],
+        }));
+
+        // Trigger auto-scheduling after event is created
+        const { triggerScheduleAllTasks } = useTaskStore.getState();
+        await triggerScheduleAllTasks();
+        return;
       }
 
       // For Google Calendar feeds, use the Google Calendar API
@@ -456,20 +537,32 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         return;
       }
 
-      // For CalDAV Calendar feeds, use the CalDAV Calendar API
-      if (feed.type === "CALDAV") {
-        const response = await fetch("/api/calendar/caldav/events", {
+      // For Local Calendar feeds, store in local database
+      if (feed.type === "LOCAL") {
+        try {
+          // Try to use the local database API
+          const response = await fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newEvent),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to add event to CalDAV Calendar");
+            throw new Error("API call failed");
         }
 
         // Reload from database to get the latest state
         await get().loadFromDatabase();
+        } catch (error) {
+          console.log(
+            "Local API call failed, falling back to local state:",
+            error
+          );
+          // Fallback to local state when API calls fail
+          set((state) => ({
+            events: [...state.events, newEvent as CalendarEvent],
+          }));
+        }
 
         // Trigger auto-scheduling after event is created
         const { triggerScheduleAllTasks } = useTaskStore.getState();
@@ -534,16 +627,16 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         return;
       }
 
-      // For CalDAV Calendar feeds, use the CalDAV Calendar API
-      if (feed.type === "CALDAV") {
-        const response = await fetch(`/api/calendar/caldav/events`, {
+      // For Local Calendar feeds, use the local database API
+      if (feed.type === "LOCAL") {
+        const response = await fetch(`/api/events/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ eventId: id, mode, ...updates }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to update event in CalDAV Calendar");
+          throw new Error("Failed to update event in local database");
         }
 
         // Reload from database to get the latest state
@@ -592,16 +685,14 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         if (!response.ok) {
           throw new Error("Failed to delete event from Outlook Calendar");
         }
-      } else if (feed.type === "CALDAV") {
-        // For CalDAV Calendar feeds, use the CalDAV Calendar API
-        const response = await fetch(`/api/calendar/caldav/events`, {
+      } else if (feed.type === "LOCAL") {
+        // For Local Calendar feeds, use the local database API
+        const response = await fetch(`/api/events/${id}`, {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId: id, mode }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to delete event from CalDAV Calendar");
+          throw new Error("Failed to delete event from local database");
         }
       } else {
         // For other calendars, use the existing API
@@ -654,15 +745,15 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         if (!response.ok) {
           throw new Error("Failed to sync Outlook Calendar");
         }
-      } else if (feed.type === "CALDAV") {
-        const response = await fetch("/api/calendar/caldav/sync", {
+      } else if (feed.type === "LOCAL") {
+        const response = await fetch("/api/calendar/local/sync", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ feedId: id }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to sync CalDAV Calendar");
+          throw new Error("Failed to sync local calendar");
         }
       }
 
@@ -696,28 +787,77 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: undefined });
 
-      // Load feeds
-      // console.log("Fetching feeds...");
+      // Try to load feeds
+      let feeds = [];
+      let events = [];
+      let hasLocalFeeds = false;
+
+      try {
       const feedsResponse = await fetch("/api/feeds");
-      if (!feedsResponse.ok) {
-        throw new Error("Failed to load feeds from database");
+        if (feedsResponse.ok) {
+          feeds = await feedsResponse.json();
+        } else {
+          // If API fails, check if we have any feeds in local state
+          const currentFeeds = get().feeds;
+          if (currentFeeds.length > 0) {
+            feeds = currentFeeds;
+            hasLocalFeeds = true;
+          } else {
+            // Create a default local calendar if we have no feeds
+            const id = uuidv4();
+            const defaultFeed: CalendarFeed = {
+              id,
+              name: "My Calendar",
+              type: "LOCAL",
+              color: "#4285F4",
+              enabled: true,
+            };
+            feeds = [defaultFeed];
+            hasLocalFeeds = true;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load feeds, using local state:", error);
+        // Use existing feeds or create a default one
+        const currentFeeds = get().feeds;
+        if (currentFeeds.length > 0) {
+          feeds = currentFeeds;
+        } else {
+          // Create a default local calendar
+          const id = uuidv4();
+          const defaultFeed: CalendarFeed = {
+            id,
+            name: "My Calendar",
+            type: "LOCAL",
+            color: "#4285F4",
+            enabled: true,
+          };
+          feeds = [defaultFeed];
+        }
+        hasLocalFeeds = true;
       }
-      const feeds = await feedsResponse.json();
-      // console.log("Loaded feeds:", feeds);
 
-      // Load events
-      // console.log("Fetching events...");
+      // Try to load events if we have feeds from the server
+      if (!hasLocalFeeds) {
+        try {
       const eventsResponse = await fetch("/api/events");
-      if (!eventsResponse.ok) {
-        throw new Error("Failed to load events from database");
+          if (eventsResponse.ok) {
+            events = await eventsResponse.json();
+          } else {
+            // Use existing events on error
+            events = get().events;
+          }
+        } catch (error) {
+          console.error("Failed to load events, using local state:", error);
+          // Use existing events
+          events = get().events;
+        }
+      } else {
+        // Use existing events if we're using local feeds
+        events = get().events;
       }
-      const events = await eventsResponse.json();
-      // console.log("Loaded events:", events);
 
-      // console.log("Setting state with loaded data:", {
-      //   feeds: feeds.length,
-      //   events: events.length,
-      // });
+      // Set the state with feeds and events
       set({ feeds, events });
     } catch (error) {
       console.error("Failed to load data from database:", error);
@@ -773,8 +913,8 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       const endpoint =
         feed.type === "GOOGLE"
           ? `/api/calendar/google/${feedId}`
-          : feed.type === "CALDAV"
-          ? `/api/calendar/caldav/sync`
+          : feed.type === "LOCAL"
+          ? `/api/calendar/local/sync`
           : `/api/calendar/outlook/sync`;
 
       const response = await fetch(endpoint, {

@@ -36,11 +36,11 @@ export function SetupCheck() {
       if (!hasChecked || needsSetup === null) return true;
 
       // If we know setup is needed, redirect immediately
-      if (needsSetup === true) {
-        router.push("/setup");
-        return false;
-      }
-
+      // if (needsSetup === true) {
+      //   router.push("/setup");
+      //   return false;
+      // }
+      // docker compose up -d db
       // If we've checked recently, don't check again
       if (lastChecked && Date.now() - lastChecked < CHECK_INTERVAL) {
         return false;

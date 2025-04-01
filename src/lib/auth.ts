@@ -1,52 +1,23 @@
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
+const LOG_SOURCE = "Auth";
+
+// Modified to avoid database queries for offline use
 export async function getGoogleCredentials() {
-  try {
-    const settings = await prisma.systemSettings.findFirst();
-    if (settings) {
-      return {
-        clientId: settings.googleClientId || process.env.GOOGLE_CLIENT_ID!,
-        clientSecret:
-          settings.googleClientSecret || process.env.GOOGLE_CLIENT_SECRET!,
-      };
-    }
-  } catch (error) {
-    console.error("Failed to get system settings:", error);
-  }
-
-  // Fallback to environment variables
+  // Return empty credentials - this will disable Google Calendar integration
   return {
-    clientId: process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    clientId: "",
+    clientSecret: "",
   };
 }
 
+// Modified to avoid database queries for offline use
 export async function getOutlookCredentials() {
-  try {
-    const settings = await prisma.systemSettings.findFirst();
-    if (settings) {
-      return {
-        clientId: settings.outlookClientId || process.env.AZURE_AD_CLIENT_ID!,
-        clientSecret:
-          settings.outlookClientSecret || process.env.AZURE_AD_CLIENT_SECRET!,
-        tenantId:
-          settings.outlookTenantId ||
-          process.env.AZURE_AD_TENANT_ID ||
-          "common",
-      };
-    }
-  } catch (error) {
-    console.error("Failed to get system settings:", error);
-  }
-
-  // Fallback to environment variables
-  const clientId = process.env.AZURE_AD_CLIENT_ID || "";
-  const clientSecret = process.env.AZURE_AD_CLIENT_SECRET || "";
-  const tenantId = process.env.AZURE_AD_TENANT_ID || "";
-
+  // Return empty credentials - this will disable Outlook Calendar integration
   return {
-    clientId,
-    clientSecret,
-    tenantId: tenantId,
+    clientId: "",
+    clientSecret: "",
+    tenantId: "common",
   };
 }

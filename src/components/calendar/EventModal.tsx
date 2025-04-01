@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
-import { CalendarEvent } from "@/types/calendar";
+import { CalendarEvent, CalendarFeed } from "@/types/calendar";
 import { useCalendarStore } from "@/store/calendar";
 import { useSettingsStore } from "@/store/settings";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { v4 as uuidv4 } from "uuid";
 
 interface EventModalProps {
   isOpen: boolean;
@@ -124,7 +125,8 @@ export function EventModal({
   defaultDate,
   defaultEndDate,
 }: EventModalProps) {
-  const { feeds, addEvent, updateEvent, removeEvent } = useCalendarStore();
+  const { feeds, addEvent, updateEvent, removeEvent, addFeed } =
+    useCalendarStore();
   const { calendar } = useSettingsStore();
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showRecurrenceDialog, setShowRecurrenceDialog] = useState(false);
@@ -156,9 +158,53 @@ export function EventModal({
   const [recurrenceByDay, setRecurrenceByDay] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Create a default LOCAL calendar if none exists
+  useEffect(() => {
+    const createDefaultCalendarIfNeeded = async () => {
+      if (feeds.length === 0) {
+        try {
+          // Try to create a calendar feed through the store function first
+          const feedId = await addFeed(
+            "My Calendar",
+            "",
+            "LOCAL",
+            "#4285F4",
+            true
+          );
+          console.log("Created default LOCAL calendar with id:", feedId);
+          setSelectedFeedId(feedId);
+        } catch (error) {
+          console.error("Failed to create feed through store:", error);
+
+          // Fallback: create directly in the store state
+          const feedId = uuidv4();
+          const defaultFeed: CalendarFeed = {
+            id: feedId,
+            name: "My Calendar",
+            type: "LOCAL",
+            color: "#4285F4",
+            enabled: true,
+          };
+
+          useCalendarStore.setState((state) => ({
+            feeds: [...state.feeds, defaultFeed],
+          }));
+
+          setSelectedFeedId(feedId);
+          console.log("Created fallback LOCAL calendar with id:", feedId);
+        }
+      }
+    };
+
+    if (isOpen) {
+      createDefaultCalendarIfNeeded();
+    }
+  }, [isOpen, feeds, addFeed]);
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Reset form fields
       setTitle(event?.title || "");
       setDescription(event?.description || "");
       setLocation(event?.location || "");
@@ -176,7 +222,6 @@ export function EventModal({
           ? newDate(defaultEndDate)
           : newDate(Date.now() + 3600000)
       );
-      setSelectedFeedId(event?.feedId || calendar.defaultCalendarId || "");
       setIsAllDay(event?.allDay || false);
       setIsRecurring(event?.isRecurring || false);
       const { freq, interval, byDay } = parseRecurrenceRule(
@@ -209,14 +254,42 @@ export function EventModal({
     }
   }, [isOpen, event?.isRecurring, editMode, showRecurrenceDialog]);
 
+  // Select the first available feed if none is selected
+  useEffect(() => {
+    if (isOpen && feeds.length > 0 && !selectedFeedId) {
+      setSelectedFeedId(feeds[0].id);
+    }
+  }, [isOpen, feeds, selectedFeedId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const feed = feeds.find((f) => f.id === selectedFeedId);
+      let feed = feeds.find((f) => f.id === selectedFeedId);
+
+      // Create a default feed if none is found
       if (!feed) {
-        console.error("Selected calendar not found");
-        return;
+        // Create a default calendar with UUID
+        const feedId = uuidv4();
+
+        // Add the feed to the local state
+        const defaultFeed: CalendarFeed = {
+          id: feedId,
+          name: "My Calendar",
+          type: "LOCAL",
+          color: "#4285F4",
+          enabled: true,
+        };
+
+        // Update the feeds in the store
+        useCalendarStore.setState((state) => ({
+          feeds: [...state.feeds, defaultFeed],
+        }));
+
+        // Use this feed
+        feed = defaultFeed;
+        setSelectedFeedId(feedId);
+        console.log("Created default calendar:", feedId);
       }
 
       const eventData: Omit<CalendarEvent, "id"> = {
@@ -225,7 +298,7 @@ export function EventModal({
         location,
         start: startDate,
         end: endDate,
-        feedId: selectedFeedId,
+        feedId: feed.id,
         allDay: isAllDay,
         isRecurring,
         recurrenceRule: isRecurring
@@ -238,19 +311,30 @@ export function EventModal({
         isMaster: false,
       };
 
-      if (event?.id) {
-        // For existing events
-        if (feed.type === "GOOGLE" && !event.externalEventId) {
-          throw new Error("Cannot edit this Google Calendar event");
+      try {
+        if (event?.id) {
+          // For existing events
+          if (feed.type === "GOOGLE" && !event.externalEventId) {
+            throw new Error("Cannot edit this Google Calendar event");
+          }
+          await updateEvent(event.id, eventData, editMode);
+        } else {
+          // For new events
+          await addEvent(eventData);
         }
-        await updateEvent(event.id, eventData, editMode);
-      } else {
-        // For new events
-        await addEvent(eventData);
+        // Reset all states before closing
+        resetState();
+        onClose();
+      } catch (apiError) {
+        console.error(
+          "API call failed, but we can still close the modal:",
+          apiError
+        );
+        // Even if the API call fails, we still want to close the modal
+        // The event may be stored in local state anyway
+        resetState();
+        onClose();
       }
-      // Reset all states before closing
-      resetState();
-      onClose();
     } catch (error) {
       console.error("Failed to save event:", error);
       alert(error instanceof Error ? error.message : "Failed to save event");
@@ -379,7 +463,7 @@ export function EventModal({
                 required
               />
             </div>
-
+            {/* 
             <div className="space-y-2">
               <Label htmlFor="calendar">Calendar</Label>
               <Select
@@ -400,7 +484,7 @@ export function EventModal({
                     ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
