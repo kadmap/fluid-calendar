@@ -36,7 +36,7 @@ export async function getEvent(
     recurringEventId: event.recurringEventId || undefined,
     feed: {
       ...event.feed,
-      type: event.feed.type as "GOOGLE" | "OUTLOOK" | "CALDAV",
+      type: event.feed.type as "LOCAL" | "GOOGLE" | "OUTLOOK" | "CALDAV",
       url: event.feed.url || undefined,
       color: event.feed.color || undefined,
       lastSync: event.feed.lastSync || undefined,

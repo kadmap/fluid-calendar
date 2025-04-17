@@ -17,29 +17,27 @@ const publicRoutes = [
 // Routes that only admins can access
 const adminRoutes = ["/admin", "/logs", "/settings/system"];
 export default withAuth(
-  function middleware(req) {
+  function middleware() {
     return NextResponse.next();
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Allow access to auto_auth route without authentication
+        // Allow access to public routes without authentication
         if (publicRoutes.includes(req.nextUrl.pathname)) {
           return true;
         }
-        // Require authentication for other routes
-        return !!token;
-      },
-      adminAuthorized: ({ token, req }) => {
+
         // Check if the route is admin-only
         if (
           adminRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
         ) {
-          // If the user is not an admin, redirect to the home page
-          if (token.role !== "admin") {
-            return NextResponse.redirect(new URL("/", req.url));
-          }
+          // Allow only if token exists and user is an admin
+          return !!token && token.role === "ADMIN";
         }
+
+        // Require authentication for other routes
+        return !!token;
       },
     },
   }

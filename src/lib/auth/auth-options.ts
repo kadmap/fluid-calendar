@@ -1,9 +1,9 @@
 import { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import AzureADProvider from "next-auth/providers/azure-ad";
+// import GoogleProvider from "next-auth/providers/google";
+// import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
-import { MICROSOFT_GRAPH_SCOPES } from "@/lib/outlook";
+// import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
+// import { MICROSOFT_GRAPH_SCOPES } from "@/lib/outlook";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { logger } from "@/lib/logger";
 

@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import { logger } from "@/lib/logger";
+// import { prisma } from "@/lib/prisma";
+// import { logger } from "@/lib/logger";
 
-const LOG_SOURCE = "Auth";
+// const LOG_SOURCE = "Auth";
 
 // Modified to avoid database queries for offline use
 export async function getGoogleCredentials() {
