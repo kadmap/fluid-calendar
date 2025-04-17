@@ -1,0 +1,25 @@
+version: ""
+services:
+  app:
+    image: kadmap-calendar:latest
+    ports:
+    - "3000"
+    environment:
+    - KADMAP_API_URL=http://kadmap.localhost/api/v1
+    env_file:
+    - .env
+    depends_on:
+    - db
+    restart: unless-stopped
+  db:
+    image: postgres:16
+    environment:
+    - POSTGRES_USER=fluid
+    - POSTGRES_PASSWORD=fluid
+    - POSTGRES_DB=fluid_calendar
+    - KADMAP_API_URL=http://kadmap.localhost/api/v1
+    volumes:
+    - postgres_dev_data:/var/lib/postgresql/data
+    restart: unless-stopped
+volumes:
+  postgres_dev_data: null

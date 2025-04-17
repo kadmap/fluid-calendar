@@ -1,13 +1,12 @@
 services:
   app:
-    image: eibrahim/fluid-calendar:latest
+    image: kadmap-calendar:latest
     ports:
-      - "3000:3000"
+      - "3035:3000"
     env_file:
       - .env
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     restart: unless-stopped
 
   db:
@@ -16,8 +15,6 @@ services:
       - POSTGRES_USER=fluid
       - POSTGRES_PASSWORD=fluid
       - POSTGRES_DB=fluid_calendar
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
