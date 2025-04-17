@@ -1,4 +1,5 @@
-/** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   // Disable all development indicators
   devIndicators: {
@@ -31,6 +32,12 @@ const nextConfig = {
       ].filter((ext) => !ext.includes(".saas."));
     }
   })(),
+
+  // 🛠️ Webpack alias configuration
+  webpack: (config) => {
+    config.resolve.alias['@'] = path.resolve(__dirname, 'src');
+    return config;
+  },
 };
 
 module.exports = nextConfig;

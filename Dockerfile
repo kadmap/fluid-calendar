@@ -21,11 +21,15 @@ CMD ["npm", "run", "dev"]
 # Production builder stage
 FROM base AS builder
 WORKDIR /app
-COPY . .
+ENV NODE_ENV=development
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps --ignore-scripts
-RUN npm run build
+COPY . .
+ENV NODE_ENV=production
+RUN ls
+RUN pwd
 RUN npm run prisma:generate
+RUN npm run build
 
 # Production stage
 FROM base AS production
@@ -44,4 +48,4 @@ RUN chmod +x /app/entrypoint.sh
 EXPOSE 3000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]

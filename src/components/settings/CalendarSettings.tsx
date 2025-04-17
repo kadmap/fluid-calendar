@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 
 export function CalendarSettings() {
-  const { calendar, updateCalendarSettings, user, updateUserSettings } =
+  const { user, updateUserSettings } =
     useSettingsStore();
 
   return (

@@ -13,7 +13,7 @@ export default function AutoAuth() {
   const firstname = searchParams.get("firstname") || "";
   const lastname = searchParams.get("lastname") || "";
   const email = searchParams.get("email") || "";
-  const kid = searchParams.get("kid") || "";
+//  const kid = searchParams.get("kid") || "";
   const uid = searchParams.get("uid") || "";
   const guard = searchParams.get("guard") || "";
 
