@@ -22,8 +22,12 @@ CMD ["npm", "run", "dev"]
 FROM base AS builder
 WORKDIR /app
 ENV NODE_ENV=development
+
+# Install build dependencies for bcrypt
+RUN apk add --no-cache python3 make g++
+
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps --ignore-scripts
+RUN npm ci --legacy-peer-deps
 COPY . .
 ENV NODE_ENV=production
 RUN ls
@@ -42,6 +46,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/bcrypt ./node_modules/bcrypt
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
 
