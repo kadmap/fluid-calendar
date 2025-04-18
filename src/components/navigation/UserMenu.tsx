@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signOut, useSession } from "next-auth/react";
+// import { useState } from "react";
+import {  useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -12,12 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import Link from "next/link";
 
 export function UserMenu() {
   const { data: session } = useSession();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   if (!session) {
     return (
@@ -29,10 +29,10 @@ export function UserMenu() {
     );
   }
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    await signOut({ callbackUrl: "/auth/signin" });
-  };
+  // const handleLogout = async () => {
+  //   setIsLoggingOut(true);
+  //   await signOut({ callbackUrl: "/auth/signin" });
+  // };
 
   // Get user initials for avatar fallback
   const getInitials = () => {
@@ -77,14 +77,14 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
+        {/* <DropdownMenuItem
           className="cursor-pointer"
           onClick={handleLogout}
           disabled={isLoggingOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
       </DropdownMenuContent>
     </DropdownMenu>
   );

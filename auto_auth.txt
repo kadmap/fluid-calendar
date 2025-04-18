@@ -1,1 +1,0 @@
-localhost:3000/auto_auth?firstname=ochuko&lastname=george&email=georgeochuko7@gmail.com&kid=username&uid=username&guard=admin

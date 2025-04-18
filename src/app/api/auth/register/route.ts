@@ -2,26 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
+//  import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 
 const LOG_SOURCE = "RegisterAPI";
 
 export async function POST(req: NextRequest) {
   try {
     // Check if public signup is enabled
-    const publicSignupEnabled = await isPublicSignupEnabled();
+    // const publicSignupEnabled = await isPublicSignupEnabled();
 
-    if (!publicSignupEnabled) {
-      logger.warn(
-        "Registration attempt when public signup is disabled",
-        {},
-        LOG_SOURCE
-      );
-      return NextResponse.json(
-        { error: "Public registration is disabled" },
-        { status: 403 }
-      );
-    }
+    // if (!publicSignupEnabled) {
+    //   logger.warn(
+    //     "Registration attempt when public signup is disabled",
+    //     {},
+    //     LOG_SOURCE
+    //   );
+    //   return NextResponse.json(
+    //     { error: "Public registration is disabled" },
+    //     { status: 403 }
+    //   );
+    // }
 
     const body = await req.json();
     const { email, password, name } = body;
