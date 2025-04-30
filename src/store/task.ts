@@ -296,18 +296,24 @@ export const useTaskStore = create<TaskState>()(
         try {
           // For open source version, call scheduleAllTasks directly
           if (!isSaasEnabled) {
-            await get().scheduleAllTasks();
+            try {
+              await get().scheduleAllTasks();
+            } catch (error) {
+              // Log the error but don't fail the operation
+              console.warn("Auto-scheduling failed:", error);
+              // Don't throw the error - let the operation continue
+            }
             return;
           }
 
-          // For SAAS version, use the background job queue
-          const jobResponse = await fetch("/api/tasks/schedule-all/queue", {
-            method: "POST",
-          });
+          // // For SAAS version, use the background job queue
+          // const jobResponse = await fetch("/api/tasks/schedule-all/queue", {
+          //   method: "POST",
+          // });
 
-          if (!jobResponse.ok) {
-            throw new Error("Failed to queue task scheduling job");
-          }
+          // if (!jobResponse.ok) {
+          //   throw new Error("Failed to queue task scheduling job");
+          // }
 
           // Set up SSE connection if not already connected
           if (

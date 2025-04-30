@@ -8,7 +8,18 @@ services:
     depends_on:
       - db
     restart: unless-stopped
-
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+          ignore:
+            - node_modules/
+            - dist/
+            - .next/
+            - .git/
+            - .vscode/
+            - .idea/
   db:
     image: postgres:16
     environment:
@@ -24,6 +35,19 @@ services:
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    # ports:
+    #   - "5432:5432"  # Expose PostgreSQL port
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+      - ADMINER_DESIGN=dracula
 
 volumes:
   postgres_dev_data:
