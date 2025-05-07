@@ -119,7 +119,7 @@ export default function AutoAuth() {
     };
 
     handleAuth();
-  }, [kadmap_api_url, user_id, user_KID, router]);
+  }, [kadmap_api_url, user_id, user_KID, router, fetchData]);
 
   return (
     <div className="h-screen w-screen flex items-center justify-center">
