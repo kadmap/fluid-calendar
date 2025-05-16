@@ -169,12 +169,12 @@ export function EventModal({
             "",
             "LOCAL",
             "#4285F4",
-            true
+            false
           );
           console.log("Created default LOCAL calendar with id:", feedId);
           setSelectedFeedId(feedId);
         } catch (error) {
-          console.error("Failed to create feed through store:", error);
+          console.log("Failed to create feed through store:", error);
 
           // Fallback: create directly in the store state
           const feedId = uuidv4();
@@ -264,80 +264,54 @@ export function EventModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
     try {
-      let feed = feeds.find((f) => f.id === selectedFeedId);
-
-      // Create a default feed if none is found
-      if (!feed) {
-        // Create a default calendar with UUID
-        const feedId = uuidv4();
-
-        // Add the feed to the local state
-        const defaultFeed: CalendarFeed = {
-          id: feedId,
-          name: "My Calendar",
-          type: "LOCAL",
-          color: "#4285F4",
-          enabled: true,
-        };
-
-        // Update the feeds in the store
-        useCalendarStore.setState((state) => ({
-          feeds: [...state.feeds, defaultFeed],
-        }));
-
-        // Use this feed
-        feed = defaultFeed;
-        setSelectedFeedId(feedId);
-        console.log("Created default calendar:", feedId);
-      }
-
-      const eventData: Omit<CalendarEvent, "id"> = {
+      console.log("Submitting event with data:", {
         title,
         description,
         location,
+        startDate,
+        endDate,
+        selectedFeedId,
+        isAllDay,
+        isRecurring,
+        recurrenceFreq,
+        recurrenceInterval,
+        recurrenceByDay,
+      });
+
+      const recurrenceRule = buildRecurrenceRule(
+        recurrenceFreq,
+        recurrenceInterval,
+        recurrenceByDay
+      );
+
+      const eventData = {
+        feedId: selectedFeedId,
+        title,
+        description,
         start: startDate,
         end: endDate,
-        feedId: feed.id,
-        allDay: isAllDay,
-        isRecurring,
-        recurrenceRule: isRecurring
-          ? buildRecurrenceRule(
-              recurrenceFreq,
-              recurrenceInterval,
-              recurrenceByDay
-            )
-          : undefined,
+        location,
+        isRecurring: isRecurring || false,
+        recurrenceRule,
+        allDay: isAllDay || false,
         isMaster: false,
       };
 
-      try {
-        if (event?.id) {
-          // For existing events
-          if (feed.type === "GOOGLE" && !event.externalEventId) {
-            throw new Error("Cannot edit this Google Calendar event");
-          }
-          await updateEvent(event.id, eventData, editMode);
-        } else {
-          // For new events
-          await addEvent(eventData);
-        }
-        // Reset all states before closing
-        resetState();
-        onClose();
-      } catch (apiError) {
-        console.error(
-          "API call failed, but we can still close the modal:",
-          apiError
-        );
-        // Even if the API call fails, we still want to close the modal
-        // The event may be stored in local state anyway
-        resetState();
-        onClose();
+      console.log("Sending event data to API:", eventData);
+
+      if (event?.id) {
+        await updateEvent(event.id, eventData, editMode);
+        console.log("Event updated successfully");
+      } else {
+        await addEvent(eventData);
+        console.log("Event created successfully");
       }
+
+      onClose();
     } catch (error) {
       console.error("Failed to save event:", error);
-      alert(error instanceof Error ? error.message : "Failed to save event");
     } finally {
       setIsSubmitting(false);
     }

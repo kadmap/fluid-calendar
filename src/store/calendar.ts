@@ -273,6 +273,8 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
             body: JSON.stringify(feed),
           });
 
+          console.log(response, "response ");
+          
           if (!response.ok) {
             // If the API call fails, still add to local state
             console.log("API error, falling back to local state only");

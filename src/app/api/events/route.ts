@@ -57,10 +57,12 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) {
+      logger.error("Authentication failed", { response: !!auth.response }, LOG_SOURCE);
       return auth.response;
     }
 
     const userId = auth.userId;
+    logger.debug("Creating event for user", { userId }, LOG_SOURCE);
 
     const {
       feedId,
@@ -74,7 +76,22 @@ export async function POST(request: NextRequest) {
       allDay,
     } = await request.json();
 
+    logger.debug("Received event data", {
+      feedId,
+      title,
+      start,
+      end,
+      isRecurring,
+      allDay,
+    }, LOG_SOURCE);
+
     if (!feedId || !title || !start || !end) {
+      logger.error("Missing required fields", {
+        feedId,
+        title,
+        start,
+        end,
+      }, LOG_SOURCE);
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -93,6 +110,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!feed) {
+      logger.error("Feed not found or unauthorized", {
+        feedId,
+        userId,
+      }, LOG_SOURCE);
       return NextResponse.json(
         {
           error:
@@ -101,6 +122,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    logger.debug("Found feed", { feedId: feed.id, feedName: feed.name }, LOG_SOURCE);
 
     // Create event in database
     const event = await prisma.calendarEvent.create({
@@ -117,12 +140,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logger.debug("Successfully created event", { eventId: event.id }, LOG_SOURCE);
     return NextResponse.json(event);
   } catch (error) {
     logger.error(
       "Failed to create calendar event:",
       {
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack ?? null : null,
       },
       LOG_SOURCE
     );
