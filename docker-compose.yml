@@ -1,6 +1,9 @@
 services:
   app:
-    image: kadmap-calendar:latest
+    # image: kadmap-calendar:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3035:3000"
     env_file:
@@ -42,7 +45,7 @@ services:
     image: adminer
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       - db
     environment:
